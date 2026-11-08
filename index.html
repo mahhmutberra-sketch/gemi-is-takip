@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemi Mahal ve İş Takip Sistemi</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script> tailwind.config = { darkMode: 'class' } </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 h-screen flex flex-col overflow-hidden transition-colors duration-200">
+
+    <!-- GİRİŞ EKRANI -->
+    <div id="girisEkrani" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-3xl w-full max-w-md shadow-2xl text-center">
+            <div class="w-16 h-16 bg-blue-600/10 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-bold shadow-inner">🚢</div>
+            <h2 class="text-xl font-bold mb-1">Gemi Mahal & İş Takip</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-6">Devam etmek için lütfen giriş türünü seçin.</p>
+            <div class="space-y-3">
+                <button onclick="misafirModalAc()" class="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 p-3.5 rounded-xl font-semibold text-sm transition-all border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 cursor-pointer">
+                    👤 Misafir Girişi
+                </button>
+                <button onclick="adminModalAc()" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3.5 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer">
+                    🔐 Admin Girişi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MİSAFİR GİRİŞ MODALI -->
+    <div id="misafirModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-96 shadow-2xl text-left">
+            <h3 class="text-base font-bold mb-2 flex items-center gap-2">👤 Misafir Girişi</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Sistemde tanımlı kullanıcı adınızı girin.</p>
+            <input type="text" id="misafirKadiInput" placeholder="Kullanıcı adınız..." class="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl w-full mb-3 text-sm outline-none focus:border-blue-500 transition-all" />
+            <div id="misafirGirisHata" class="text-rose-500 text-xs font-semibold mb-3 hidden">Bu kullanıcı adı sistemde kayıtlı değil!</div>
+            <div class="flex justify-end gap-2">
+                <button onclick="misafirModalKapat()" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-semibold transition-colors">İptal</button>
+                <button onclick="misafirGirisKontrol()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-all">Giriş Yap</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN GİRİŞ MODALI -->
+    <div id="adminModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-7 rounded-3xl w-96 shadow-2xl text-left">
+            <h3 class="text-base font-bold mb-1 flex items-center gap-2">🔐 Admin Girişi</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-5">Yönetici kimlik bilgilerinizle oturum açın.</p>
+            
+            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Kullanıcı Adı</label>
+            <input type="text" id="adminKadiInput" placeholder="Kullanıcı adı..." class="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl w-full mb-3.5 text-sm outline-none focus:border-blue-500 transition-all" />
+
+            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Parola</label>
+            <div class="relative mb-5">
+                <input type="password" id="adminSifreInput" placeholder="Parola..." class="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 pr-10 rounded-xl w-full text-sm outline-none focus:border-blue-500 transition-all" />
+                <button type="button" onclick="sifreGosterGizle('adminSifreInput', 'sifreToggleBtn')" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm focus:outline-none" id="sifreToggleBtn" title="Şifreyi Göster">
+                    👁️
+                </button>
+            </div>
+
+            <div id="adminGirisHata" class="text-rose-500 text-xs font-semibold mb-3.5 hidden">Kullanıcı adı veya şifre hatalı!</div>
+
+            <div class="flex justify-end gap-2">
+                <button onclick="adminModalKapat()" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors">İptal</button>
+                <button onclick="adminGirisKontrol()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold transition-all shadow-md shadow-blue-600/20">Giriş Yap</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESİM BÜYÜTME MODALI -->
+    <div id="resimModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden flex items-center justify-center z-50 p-4 cursor-pointer" onclick="resimModalKapat()">
+        <div class="relative max-w-5xl max-h-[90vh] flex items-center justify-center" onclick="event.stopPropagation()">
+            <button onclick="resimModalKapat()" class="absolute -top-10 right-0 text-white bg-slate-800 hover:bg-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center text-sm shadow-lg">✕</button>
+            <img id="modalBuyukResim" src="" alt="Büyük Görsel" class="max-h-[85vh] max-w-full rounded-2xl shadow-2xl border border-slate-800 object-contain" />
+        </div>
+    </div>
+
+    <!-- AYARLAR MODALI -->
+    <div id="ayarlarModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl w-full max-w-md shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 class="text-base font-bold flex items-center gap-2">⚙️ Sistem Ayarları</h3>
+                <button onclick="ayarlarModalKapat()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold">✕</button>
+            </div>
+
+            <!-- Tema -->
+            <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Görünüm Modu</span>
+                <button onclick="temaDegistir()" id="temaBtn" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-xs px-3 py-1.5 rounded-xl font-semibold transition-colors">🌙 Karanlık Mod</button>
+            </div>
+
+            <!-- Admin Bilgileri -->
+            <div id="adminAyarBolumu" class="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800 hidden">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Admin Bilgileri (Bulut)</h4>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 mb-1">Kullanıcı Adı:</label>
+                    <input type="text" id="ayarAdminKadi" class="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl w-full text-sm outline-none focus:border-blue-500" />
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 mb-1">Parola:</label>
+                    <div class="relative">
+                        <input type="password" id="ayarAdminSifre" class="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 pr-10 rounded-xl w-full text-sm outline-none focus:border-blue-500" />
+                        <button type="button" onclick="sifreGosterGizle('ayarAdminSifre', 'ayarSifreToggleBtn')" class="absolute right-3 top-3 text-slate-400 hover:text-slate-200 text-sm focus:outline-none" id="ayarSifreToggleBtn" title="Şifreyi Göster">
+                            👁️
+                        </button>
+                    </div>
+                </div>
+                <button onclick="adminBilgiKaydet()" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl text-xs font-semibold transition-all shadow-sm">Kaydet (Güncelle)</button>
+            </div>
+
+            <!-- Misafir Yönetimi -->
+            <div id="misafirYonetimBolumu" class="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800 hidden">
+                <div class="flex justify-between items-center">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Misafir Kullanıcı Yönetimi</h4>
+                    <button onclick="misafirSatirAc()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shadow-sm">+ Misafir Ekle</button>
+                </div>
+
+                <div id="yeniMisafirForm" class="flex gap-2 hidden pt-1">
+                    <input type="text" id="yeniMisafirAdi" placeholder="Misafir adı..." class="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl w-full text-xs outline-none focus:border-blue-500" />
+                    <button onclick="misafirEkleKaydet()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-all">Kaydet</button>
+                </div>
+
+                <div id="kayitliMisafirlerListesi" class="space-y-2 max-h-40 overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- Oturumu Kapat -->
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button onclick="cikisYap()" class="w-full bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 p-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-center gap-2">
+                    🚪 Oturumu Kapat / Çıkış Yap
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ÜST HEADER -->
+    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-3.5 flex justify-between items-center shadow-xs">
+        <h1 class="text-base font-bold tracking-tight flex items-center gap-2.5">
+            🚢 Gemi Mahal & İş Takip 
+            <span id="rolRozet" class="text-[10px] bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 px-2.5 py-0.5 rounded-full font-semibold uppercase"></span>
+        </h1>
+        <div class="flex items-center gap-3">
+            <button onclick="ayarlarModalAc()" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs px-3.5 py-2 rounded-xl font-semibold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer">
+                ⚙️ Ayarlar
+            </button>
+        </div>
+    </header>
+
+    <div class="flex h-full w-full relative overflow-hidden">
+        <!-- SOL PANEL -->
+        <div id="solPanel" class="p-5 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto flex flex-col w-[38%] shadow-xs">
+            <h2 class="text-sm font-bold mb-3 uppercase tracking-wider text-slate-500 dark:text-slate-400">Mahaller / Arama</h2>
+            <div class="mb-3">
+                <input type="text" id="solAramaInput" placeholder="Mahal, kişi veya iş ara..." class="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl w-full text-sm outline-none focus:border-blue-500 transition-all shadow-xs" oninput="mahalleriniGoster()" />
+            </div>
+            <div id="mahalEkleAlan" class="flex flex-col gap-2 mb-4">
+                <div class="flex gap-2">
+                    <input type="text" id="yeniMahalInput" placeholder="Yeni mahal adı..." class="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl w-full text-sm outline-none focus:border-blue-500 transition-all shadow-xs" />
+                    <button onclick="mahalEkle()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-xl font-bold shadow-sm transition-all cursor-pointer">+</button>
+                </div>
+                <div id="mahalHataMsg" class="text-rose-500 text-xs font-semibold hidden">Bu isimde mahal bulunmaktadır!</div>
+            </div>
+            <div id="mahalListesi" class="flex-1 overflow-y-auto space-y-2"></div>
+        </div>
+
+        <div id="ayrac" class="w-1 bg-slate-200 dark:bg-slate-800 hover:bg-blue-500 transition-colors cursor-col-resize"></div>
+
+        <!-- SAĞ PANEL -->
+        <div id="sagPanel" class="p-5 bg-slate-50 dark:bg-slate-950 overflow-y-auto flex flex-col flex-1">
+            <div id="sagPanelIcerik" class="flex flex-col h-full">
+                <div class="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-600 gap-2">
+                    <p class="text-sm">İşlem yapmak için sol panelden bir mahal seçin.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://kdynxaizqjjyxmwlgdgi.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtkeW54YWl6cWpqeXhtd2xnZGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQxNDEyMDAsImV4cCI6MjEwOTcxNzIwMH0.l3ep6SmE5Q_wAn-2mxEYaYvxYe84E2rRXo4zX4cbzfk';
+        
+        const { createClient } = supabase;
+        const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let mahaller = [];
+        let isKayitlari = [];
+        let seciliMahalAdi = null;
+        let kullaniciRolu = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const oturumRolu = sessionStorage.getItem('aktifRol');
+            if (oturumRolu) {
+                kullaniciRolu = oturumRolu;
+                document.getElementById('girisEkrani').classList.add('hidden');
+                document.getElementById('rolRozet').textContent = oturumRolu;
+                yetkiKontrolGorunum();
+                verileriGetir();
+            } else {
+                document.getElementById('girisEkrani').classList.remove('hidden');
+            }
+
+            const tema = localStorage.getItem('tema');
+            if (tema === 'dark') {
+                document.documentElement.classList.add('dark');
+            }
+        });
+
+        function misafirModalAc() { 
+            document.getElementById('misafirModal').classList.remove('hidden'); 
+        }
+        function misafirModalKapat() { 
+            document.getElementById('misafirModal').classList.add('hidden'); 
+            document.getElementById('misafirGirisHata').classList.add('hidden'); 
+        }
+        
+        function adminModalAc() { 
+            document.getElementById('adminModal').classList.remove('hidden'); 
+            document.getElementById('adminKadiInput').value = '';
+            document.getElementById('adminSifreInput').value = '';
+        }
+        function adminModalKapat() { 
+            document.getElementById('adminModal').classList.add('hidden'); 
+            document.getElementById('adminGirisHata').classList.add('hidden'); 
+        }
+
+        function sifreGosterGizle(inputId, btnId) {
+            const sifreInput = document.getElementById(inputId);
+            const btn = document.getElementById(btnId);
+            if (sifreInput.type === 'password') {
+                sifreInput.type = 'text';
+                btn.textContent = '🙈';
+            } else {
+                sifreInput.type = 'password';
+                btn.textContent = '👁️';
+            }
+        }
+
+        function resimBuyutAc(url) {
+            document.getElementById('modalBuyukResim').src = url;
+            document.getElementById('resimModal').classList.remove('hidden');
+        }
+        function resimModalKapat() {
+            document.getElementById('resimModal').classList.add('hidden');
+            document.getElementById('modalBuyukResim').src = '';
+        }
+
+        async function misafirGirisKontrol() {
+            const girilenAd = document.getElementById('misafirKadiInput').value.trim();
+            const { data } = await _supabase.from('misafirler').select('misafir_adi');
+            let misafirler = data ? data.map(m => m.misafir_adi) : [];
+
+            if (misafirler.includes(girilenAd) || girilenAd !== '') {
+                kullaniciRolu = 'Misafir: ' + girilenAd;
+                sessionStorage.setItem('aktifRol', kullaniciRolu);
+                misafirModalKapat();
+                document.getElementById('girisEkrani').classList.add('hidden');
+                document.getElementById('rolRozet').textContent = kullaniciRolu;
+                yetkiKontrolGorunum();
+                verileriGetir();
+            } else {
+                document.getElementById('misafirGirisHata').classList.remove('hidden');
+            }
+        }
+
+        async function adminGirisKontrol() {
+            const kadi = document.getElementById('adminKadiInput').value.trim();
+            const sifre = document.getElementById('adminSifreInput').value.trim();
+
+            const { data } = await _supabase.from('sistem_ayarlari').select('*');
+            let dbK = 'gnrtek';
+            let dbS = 'Mahmut_1234';
+            if (data) {
+                data.forEach(item => {
+                    if (item.anahtar === 'admin_kadi') dbK = item.deger;
+                    if (item.anahtar === 'admin_sifre') dbS = item.deger;
+                });
+            }
+
+            if (kadi === dbK && sifre === dbS) {
+                kullaniciRolu = 'Admin';
+                sessionStorage.setItem('aktifRol', 'Admin');
+
+                adminModalKapat();
+                document.getElementById('girisEkrani').classList.add('hidden');
+                document.getElementById('rolRozet').textContent = 'Admin';
+                yetkiKontrolGorunum();
+                await verileriGetir();
+            } else {
+                document.getElementById('adminGirisHata').classList.remove('hidden');
+            }
+        }
+
+        function yetkiKontrolGorunum() {
+            const alan = document.getElementById('mahalEkleAlan');
+            if (kullaniciRolu && kullaniciRolu.startsWith('Misafir')) {
+                if(alan) alan.style.display = 'none';
+            } else {
+                if(alan) alan.style.display = 'flex';
+            }
+        }
+
+        async function ayarlarModalAc() {
+            document.getElementById('ayarlarModal').classList.remove('hidden');
+            const adminBolum = document.getElementById('adminAyarBolumu');
+            const misafirBolum = document.getElementById('misafirYonetimBolumu');
+
+            if (kullaniciRolu === 'Admin') {
+                adminBolum.classList.remove('hidden');
+                misafirBolum.classList.remove('hidden');
+
+                const { data } = await _supabase.from('sistem_ayarlari').select('*');
+                if (data) {
+                    data.forEach(item => {
+                        if (item.anahtar === 'admin_kadi') document.getElementById('ayarAdminKadi').value = item.deger;
+                        if (item.anahtar === 'admin_sifre') document.getElementById('ayarAdminSifre').value = item.deger;
+                    });
+                }
+                misafirListesiniCiz();
+            } else {
+                adminBolum.classList.add('hidden');
+                misafirBolum.classList.add('hidden');
+            }
+            document.getElementById('yeniMisafirForm').classList.add('hidden');
+        }
+
+        function ayarlarModalKapat() { document.getElementById('ayarlarModal').classList.add('hidden'); }
+
+        async function adminBilgiKaydet() {
+            const yeniK = document.getElementById('ayarAdminKadi').value.trim();
+            const yeniS = document.getElementById('ayarAdminSifre').value.trim();
+            if (!yeniK || !yeniS) { alert("Boş bırakılamaz!"); return; }
+
+            await _supabase.from('sistem_ayarlari').upsert({ anahtar: 'admin_kadi', deger: yeniK }, { onConflict: 'anahtar' });
+            await _supabase.from('sistem_ayarlari').upsert({ anahtar: 'admin_sifre', deger: yeniS }, { onConflict: 'anahtar' });
+            alert("Admin bilgileri internet veritabanına başarıyla kaydedildi!");
+            ayarlarModalKapat();
+        }
+
+        function misafirSatirAc() {
+            document.getElementById('yeniMisafirForm').classList.toggle('hidden');
+            document.getElementById('yeniMisafirAdi').value = '';
+        }
+
+        async function misafirEkleKaydet() {
+            const ad = document.getElementById('yeniMisafirAdi').value.trim();
+            if (!ad) return;
+            const { error } = await _supabase.from('misafirler').insert([{ misafir_adi: ad }]);
+            if (error) { alert("Hata: " + error.message); return; }
+            document.getElementById('yeniMisafirAdi').value = '';
+            document.getElementById('yeniMisafirForm').classList.add('hidden');
+            misafirListesiniCiz();
+        }
+
+        async function misafirSil(ad) {
+            await _supabase.from('misafirler').delete().eq('misafir_adi', ad);
+            misafirListesiniCiz();
+        }
+
+        async function misafirDuzenle(eskiAd) {
+            const yeniAd = prompt("Yeni misafir adını girin:", eskiAd);
+            if (!yeniAd || yeniAd.trim() === '') return;
+            await _supabase.from('misafirler').update({ misafir_adi: yeniAd.trim() }).eq('misafir_adi', eskiAd);
+            misafirListesiniCiz();
+        }
+
+        async function misafirListesiniCiz() {
+            const listeDiv = document.getElementById('kayitliMisafirlerListesi');
+            listeDiv.innerHTML = '';
+            const { data } = await _supabase.from('misafirler').select('misafir_adi');
+            if (!data || data.length === 0) {
+                listeDiv.innerHTML = '<p class="text-xs text-slate-400 italic">Kayıtlı misafir yok.</p>';
+                return;
+            }
+            data.forEach(m => {
+                listeDiv.innerHTML += `
+                    <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                        <span class="font-semibold">${m.misafir_adi}</span>
+                        <div class="flex gap-1.5">
+                            <button onclick="misafirDuzenle('${m.misafir_adi}')" class="bg-amber-50 dark:bg-amber-950/50 text-amber-600 px-2.5 py-1 rounded-lg font-semibold">Düzenle</button>
+                            <button onclick="misafirSil('${m.misafir_adi}')" class="bg-rose-50 dark:bg-rose-950/50 text-rose-600 px-2.5 py-1 rounded-lg font-semibold">Sil</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function cikisYap() {
+            sessionStorage.clear();
+            location.reload();
+        }
+
+        function temaDegistir() {
+            const html = document.documentElement;
+            const btn = document.getElementById('temaBtn');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('tema', 'light');
+                btn.innerHTML = '🌙 Karanlık Mod';
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('tema', 'dark');
+                btn.innerHTML = '☀️ Aydınlık Mod';
+            }
+        }
+
+        async function verileriGetir() {
+            const { data: mahalData } = await _supabase.from('mahaller').select('*');
+            if (mahalData) mahaller = mahalData;
+
+            const { data: isData } = await _supabase.from('is_kayitlari').select('*');
+            if (isData) isKayitlari = isData;
+
+            mahalleriniGoster();
+            if (seciliMahalAdi) sagPaneliGoster();
+        }
+
+        function mahalleriniGoster() {
+            const arama = document.getElementById('solAramaInput').value.toLowerCase().trim();
+            const listeDiv = document.getElementById('mahalListesi');
+            listeDiv.innerHTML = '';
+
+            const benzersizMahallerMap = new Map();
+
+            mahaller.forEach(m => {
+                let temizAd = (m.mahal_adi || '').trim();
+                if (temizAd) {
+                    let key = temizAd.toLowerCase();
+                    if (!benzersizMahallerMap.has(key)) {
+                        benzersizMahallerMap.set(key, { mahal_adi: temizAd, ids: [] });
+                    }
+                    benzersizMahallerMap.get(key).ids.push(m.id);
+                }
+            });
+
+            isDataYardimciMapKontrol(benzersizMahallerMap);
+
+            let birlesmisMahaller = Array.from(benzersizMahallerMap.values());
+
+            let filtrelenmis = birlesmisMahaller.filter(m => {
+                const mahalAdiMatch = m.mahal_adi.toLowerCase().includes(arama);
+                const ilgiliIsler = isKayitlari.filter(i => {
+                    let isMahal = getMahalAdiFromIs(i);
+                    return isMahal.toLowerCase() === m.mahal_adi.toLowerCase();
+                });
+                const altIsMatch = ilgiliIsler.some(is => {
+                    const isMetni = (is.yapilan_is || '').toLowerCase();
+                    const yapanKisi = (is.yapan_kisi || '').toLowerCase();
+                    const tarihStr = (is.tarih || '').toLowerCase();
+                    return isMetni.includes(arama) || yapanKisi.includes(arama) || tarihStr.includes(arama);
+                });
+                return mahalAdiMatch || altIsMatch;
+            });
+
+            filtrelenmis.forEach(mahal => {
+                const isSecili = seciliMahalAdi === mahal.mahal_adi;
+                const ilgiliIsler = isKayitlari.filter(i => getMahalAdiFromIs(i).toLowerCase() === mahal.mahal_adi.toLowerCase());
+                const kayitSayisi = ilgiliIsler.length;
+                
+                listeDiv.innerHTML += `
+                    <div class="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-xs mb-2 transition-all">
+                        <div class="p-3.5 font-medium flex justify-between items-center cursor-pointer ${isSecili ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 border-l-4 border-blue-600' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}" onclick="mahalTikla('${mahal.mahal_adi.replace(/'/g, "\\'")}')">
+                            <span class="font-semibold text-sm truncate">${mahal.mahal_adi}</span>
+                            <span class="text-[11px] bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full font-semibold text-slate-500">${kayitSayisi} kayıt</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function getMahalAdiFromIs(isKaydi) {
+            let mahalObj = mahaller.find(m => String(m.id) === String(isKaydi.mahal_id));
+            if (mahalObj) return mahalObj.mahal_adi.trim();
+            if (isKayitlari && isKayitlari.length > 0 && isKaydi.yapilan_is && isKaydi.yapilan_is.includes(':')) {
+                return isKayitlari.find(i => i === isKaydi)?.yapilan_is.split(':')[0].trim() || "Diğer";
+            }
+            return "Diğer";
+        }
+
+        function isDataYardimciMapKontrol(mapObj) {
+            if (isKayitlari) {
+                isKayitlari.forEach(i => {
+                    let ad = getMahalAdiFromIs(i);
+                    let key = ad.toLowerCase();
+                    if (!mapObj.has(key)) {
+                        mapObj.set(key, { mahal_adi: ad, ids: [i.mahal_id] });
+                    }
+                });
+            }
+        }
+
+        function mahalTikla(ad) {
+            seciliMahalAdi = (seciliMahalAdi === ad) ? null : ad;
+            if (!seciliMahalAdi) {
+                document.getElementById('sagPanelIcerik').innerHTML = `<p class="text-sm text-slate-400 text-center m-auto">Sol panelden mahal seçin.</p>`;
+            } else {
+                sagPaneliGoster();
+            }
+            mahalleriniGoster();
+        }
+
+        function sagPaneliGoster() {
+            const sagDiv = document.getElementById('sagPanelIcerik');
+            if (!seciliMahalAdi) return;
+
+            const isAdmin = (kullaniciRolu === 'Admin');
+
+            let yeniIsFormHtml = isAdmin ? `
+                <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 mb-5 shadow-xs flex flex-col gap-3">
+                    <h3 class="font-bold text-xs uppercase tracking-wider text-slate-400">Yeni İş Ekle</h3>
+                    <div class="flex gap-2">
+                        <input type="date" id="yeniTarih" class="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl text-sm outline-none w-1/2" value="${new Date().toISOString().split('T')[0]}" />
+                        <input type="text" id="yeniYapanKisi" placeholder="İşi yapan kişi..." class="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl text-sm outline-none w-1/2" />
+                    </div>
+                    <textarea id="yeniIsTanimi" placeholder="Yapılan iş açıklaması..." class="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl text-sm outline-none h-20 resize-none"></textarea>
+                    <input type="file" id="yeniResimDosyasi" accept="image/*" class="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2 rounded-xl text-xs outline-none" />
+                    <button onclick="isEkle()" class="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-xl font-bold text-xs transition-all shadow-sm cursor-pointer">Kayıt Ekle</button>
+                </div>` : '';
+
+            sagDiv.innerHTML = `
+                <h2 class="text-base font-bold mb-4 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 bg-blue-600 rounded-full"></span> ${seciliMahalAdi}
+                </h2>
+                ${yeniIsFormHtml}
+                <div class="flex-1 overflow-y-auto space-y-3" id="sagIsListesi"></div>
+            `;
+            isleriGoster();
+        }
+
+        function isleriGoster() {
+            const listeDiv = document.getElementById('sagIsListesi');
+            listeDiv.innerHTML = '';
+            const isAdmin = (kullaniciRolu === 'Admin');
+
+            const kayitlar = isKayitlari.filter(i => getMahalAdiFromIs(i).toLowerCase() === seciliMahalAdi.toLowerCase()).sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
+
+            if (kayitlar.length > 0) {
+                kayitlar.forEach(is => {
+                    let silBtn = isAdmin ? `<button onclick="isSil('${is.id}')" class="text-[10px] bg-rose-50 dark:bg-rose-950/50 text-rose-600 px-2.5 py-1 rounded-lg font-semibold cursor-pointer">Sil</button>` : '';
+                    let resimHtml = is.resim_url ? `<div class="mt-2"><img src="${is.resim_url}" alt="Görsel" onclick="resimBuyutAc('${is.resim_url}')" class="rounded-xl max-h-48 object-cover border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:opacity-90 transition-opacity" title="Büyütmek için tıklayın" /></div>` : '';
+
+                    listeDiv.innerHTML += `
+                        <div class="p-4 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl shadow-xs flex flex-col gap-2">
+                            <div class="flex justify-between items-center">
+                                <span class="text-blue-600 dark:text-blue-400 font-bold text-xs">${is.tarih || ''}</span>
+                                ${silBtn}
+                            </div>
+                            <div class="text-slate-800 dark:text-slate-200 text-sm font-medium">${is.yapilan_is || ''}</div>
+                            <span class="text-slate-400 italic text-xs">Yapan: ${is.yapan_kisi || 'Belirtilmemiş'}</span>
+                            ${resimHtml}
+                        </div>
+                    `;
+                });
+            } else {
+                listeDiv.innerHTML = `<p class="text-slate-400 text-sm italic text-center py-8">Bu mahalde henüz iş kaydı yok.</p>`;
+            }
+        }
+
+        async function mahalEkle() {
+            const input = document.getElementById('yeniMahalInput');
+            const hataDiv = document.getElementById('mahalHataMsg');
+            const ad = input.value.trim();
+            
+            hataDiv.classList.add('hidden');
+            if (!ad) return;
+
+            const varMi = mahaller.some(m => m.mahal_adi.trim().toLowerCase() === ad.toLowerCase());
+            if (varMi) {
+                hataDiv.textContent = "Bu isimde mahal bulunmaktadır!";
+                hataDiv.classList.remove('hidden');
+                return;
+            }
+
+            const { data, error } = await _supabase.from('mahaller').insert([{ mahal_adi: ad }]).select();
+            if (error) { alert("Hata: " + error.message); return; }
+            if (data) { 
+                mahaller.push(data[0]); 
+                input.value = ''; 
+                mahalleriniGoster(); 
+            }
+        }
+
+        async function dosyayiBase64Yap(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        async function isEkle() {
+            const tarih = document.getElementById('yeniTarih').value;
+            const yapanKisi = document.getElementById('yeniYapanKisi').value.trim();
+            const yapilanIs = document.getElementById('yeniIsTanimi').value.trim();
+            const resimInput = document.getElementById('yeniResimDosyasi');
+            
+            if (!tarih || !yapilanIs || !seciliMahalAdi) return;
+
+            let hedefMahalObj = mahaller.find(m => m.mahal_adi.trim().toLowerCase() === seciliMahalAdi.toLowerCase());
+            let hedefMahalId = hedefMahalObj ? hedefMahalObj.id : null;
+
+            if (!hedefMahalId) {
+                const { data: yeniMData } = await _supabase.from('mahaller').insert([{ mahal_adi: seciliMahalAdi }]).select();
+                if (yeniMData) {
+                    mahaller.push(yeniMData[0]);
+                    hedefMahalId = yeniMData[0].id;
+                }
+            }
+
+            let resimUrl = null;
+            if (resimInput.files && resimInput.files[0]) {
+                try { resimUrl = await dosyayiBase64Yap(resimInput.files[0]); } catch(e) {}
+            }
+
+            const { data, error } = await _supabase.from('is_kayitlari').insert([{
+                mahal_id: hedefMahalId,
+                tarih: tarih,
+                yapan_kisi: yapanKisi,
+                yapilan_is: yapilanIs,
+                resim_url: resimUrl
+            }]).select();
+
+            if (error) { alert("Hata: " + error.message); return; }
+            if (data) {
+                isKayitlari.push(data[0]);
+                document.getElementById('yeniIsTanimi').value = '';
+                document.getElementById('yeniYapanKisi').value = '';
+                if(resimInput) resimInput.value = '';
+                mahalleriniGoster();
+                isleriGoster();
+            }
+        }
+
+        async function isSil(id) {
+            if (!confirm("Bu kaydı silmek istediğinize emin misiniz?")) return;
+            await _supabase.from('is_kayitlari').delete().eq('id', id);
+            isKayitlari = isKayitlari.filter(i => String(i.id) !== String(id));
+            mahalleriniGoster();
+            isleriGoster();
+        }
+    </script>
+</body>
+</html>
